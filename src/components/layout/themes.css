@@ -1,0 +1,40 @@
+/* テーマ設定 */
+
+/* デフォルトテーマ (ダーク) */
+[data-theme="dark"] {
+  --bg-primary: linear-gradient(135deg, #1a1a2e, #16213e);
+  --bg-secondary: rgba(0, 0, 0, 0.3);
+  --bg-tertiary: rgba(0, 0, 0, 0.5);
+}
+
+/* 高コントラストテーマ */
+[data-theme="high-contrast"] {
+  --primary-blue: #00ffff;
+  --success-green: #00ff00;
+  --warning-orange: #ffff00;
+  --error-red: #ff0000;
+  --text-primary: #ffffff;
+  --text-secondary: #cccccc;
+}
+
+/* カラーブラインド対応 */
+[data-theme="colorblind"] {
+  --success-green: #0066cc;
+  --error-red: #ff6600;
+  --warning-orange: #ffcc00;
+}
+
+/* システム設定に従う */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (prefers-contrast: high) {
+  :root {
+    --border-color: #666;
+  }
+}

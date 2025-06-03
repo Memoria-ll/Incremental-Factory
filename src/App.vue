@@ -1,4 +1,3 @@
-<!-- src/App.vue - 構造化版 -->
 <template>
   <div id="app" class="main-container">
     <GameHeader 
@@ -37,13 +36,6 @@
       :max-power="gameState.maxPower"
       :cooling="gameState.cooling"
     />
-    
-    <!-- モーダルオーバーレイ（将来の拡張用） -->
-    <div v-if="showModal" class="overlay">
-      <div class="dialog">
-        <!-- モーダルコンテンツ -->
-      </div>
-    </div>
   </div>
 </template>
 
@@ -53,9 +45,6 @@ import GameHeader from './components/layout/GameHeader.vue'
 import GameSidebar from './components/layout/GameSidebar.vue'
 import MainContent from './components/layout/MainContent.vue'
 import GameFooter from './components/layout/GameFooter.vue'
-import { useGameState } from './composables/useGameState.js'
-import { useResourceSystem } from './composables/useResourceSystem.js'
-import { useCelestialWill } from './composables/useCelestialWill.js'
 
 export default {
   name: 'SelenianLegacy',
@@ -66,14 +55,75 @@ export default {
     GameFooter
   },
   setup() {
-    // Composablesを使用した状態管理
-    const { gameState, updateGameState } = useGameState()
-    const { updateResources } = useResourceSystem(gameState)
-    const { celestialWillSystem } = useCelestialWill(gameState)
-    
-    // UI状態
+    // ゲーム状態
     const activeTab = ref('drilling')
-    const showModal = ref(false)
+    
+    const gameState = reactive({
+      // 基本状態
+      currentWeek: 1,
+      gameTime: 0,
+      celestialWill: 0,
+      
+      // 深度システム
+      currentDepth: 50,
+      maxDepth: 100,
+      temperature: 15,
+      
+      // リソース
+      resources: {
+        // 原材料
+        soil: 0,
+        rocks: 0,
+        sediment: 0,
+        iron_ore: 0,
+        copper_ore: 0,
+        rare_ore: 0,
+        
+        // 精錬済み
+        iron: 0,
+        copper: 0,
+        steel: 0,
+        alloys: 0,
+        
+        // 製品
+        wire: 0,
+        circuits: 0,
+        components: 0,
+        machinery: 0,
+        
+        // ユーティリティ
+        energy: 100,
+        fuel: 0,
+        coolant: 100
+      },
+      
+      // システム状態
+      efficiency: 100,
+      power: 0,
+      maxPower: 100,
+      cooling: 100,
+      
+      // タスク・クォータ
+      currentTask: {
+        name: "基礎研究所建設",
+        requirements: {
+          iron: 20,
+          copper: 10,
+          wire: 5
+        }
+      },
+      weeklyQuotas: [
+        { name: '鉄生産', current: 0, target: 100 },
+        { name: '銅生産', current: 0, target: 50 }
+      ],
+      
+      // アップグレード
+      upgrades: {
+        mining_speed: false,
+        auto_mining: false,
+        smelting_efficiency: false
+      }
+    })
     
     // 計算プロパティ
     const showDepthSelector = computed(() => {
@@ -84,8 +134,7 @@ export default {
       return [
         { level: 50, name: '表土層', range: '0-100m', locked: false },
         { level: 150, name: '岩盤層', range: '100-1000m', locked: gameState.maxDepth < 150 },
-        { level: 300, name: '地下水層', range: '1000-3000m', locked: gameState.maxDepth < 300 },
-        { level: 500, name: '熱水層', range: '3000-6000m', locked: gameState.maxDepth < 500 }
+        { level: 300, name: '地下水層', range: '1000-3000m', locked: gameState.maxDepth < 300 }
       ]
     })
     
@@ -96,14 +145,16 @@ export default {
           name: '採掘効率向上',
           description: '採掘速度が50%向上します',
           cost: 250,
-          purchased: gameState.upgrades?.mining_speed || false
+          category: 'mining',
+          purchased: gameState.upgrades.mining_speed
         },
         {
           id: 'auto_mining',
           name: '自動採掘システム',
           description: '少量の自動採掘を開始します',
           cost: 500,
-          purchased: gameState.upgrades?.auto_mining || false
+          category: 'mining',
+          purchased: gameState.upgrades.auto_mining
         }
       ]
     })
@@ -115,34 +166,51 @@ export default {
     
     const selectDepth = (depth) => {
       if (depth <= gameState.maxDepth) {
-        updateGameState('currentDepth', depth)
-        // 深度変更時の温度計算
-        updateGameState('temperature', 15 + (depth * 0.025))
+        gameState.currentDepth = depth
+        gameState.temperature = 15 + (depth * 0.025)
       }
     }
     
     const handleResourceUpdate = (updateData) => {
-      updateResources(updateData)
+      // リソース更新ロジック
+      switch (updateData.type) {
+        case 'mine':
+          gameState.resources[updateData.resource] += updateData.amount
+          break
+        case 'smelt':
+          // 精錬ロジック
+          break
+        case 'manufacture':
+          // 製造ロジック
+          break
+      }
     }
     
     const handleTaskComplete = (task) => {
       // タスク完了処理
-      const reward = celestialWillSystem.calculateTaskReward(
-        gameState.currentWeek,
-        task.difficulty || 1
+      const canComplete = Object.entries(task.requirements).every(
+        ([resource, required]) => gameState.resources[resource] >= required
       )
       
-      updateGameState('celestialWill', gameState.celestialWill + reward)
-      updateGameState('currentWeek', gameState.currentWeek + 1)
-      
-      // 新しいタスク生成
-      generateNewTask()
+      if (canComplete) {
+        // リソース消費
+        Object.entries(task.requirements).forEach(([resource, required]) => {
+          gameState.resources[resource] -= required
+        })
+        
+        // 報酬
+        gameState.celestialWill += 250
+        gameState.currentWeek += 1
+        
+        // 新しいタスク生成
+        generateNewTask()
+      }
     }
     
     const handleUpgradePurchase = (upgrade) => {
-      if (gameState.celestialWill >= upgrade.cost) {
-        updateGameState('celestialWill', gameState.celestialWill - upgrade.cost)
-        updateGameState(`upgrades.${upgrade.id}`, true)
+      if (gameState.celestialWill >= upgrade.cost && !upgrade.purchased) {
+        gameState.celestialWill -= upgrade.cost
+        gameState.upgrades[upgrade.id] = true
         
         // アップグレード効果の適用
         applyUpgradeEffects(upgrade)
@@ -150,79 +218,67 @@ export default {
     }
     
     const generateNewTask = () => {
-      // タスク生成ロジック（後で実装）
+      const tasks = [
+        { 
+          name: "電力システム構築", 
+          requirements: { iron: 30, copper: 20, wire: 10 } 
+        },
+        { 
+          name: "採掘装置改良", 
+          requirements: { iron: 50, copper: 30, wire: 8 } 
+        }
+      ]
+      
+      const newTask = tasks[Math.floor(Math.random() * tasks.length)]
+      Object.assign(gameState.currentTask, newTask)
     }
     
     const applyUpgradeEffects = (upgrade) => {
       switch (upgrade.id) {
         case 'mining_speed':
-          updateGameState('efficiency', gameState.efficiency * 1.5)
+          gameState.efficiency = Math.floor(gameState.efficiency * 1.5)
           break
         case 'auto_mining':
-          // 自動採掘システム開始
+          // 自動採掘開始
           break
       }
     }
     
-    // セーブ・ロード
-    const saveGame = () => {
-      const saveData = {
-        gameState: { ...gameState },
-        activeTab: activeTab.value,
-        timestamp: Date.now()
-      }
-      
-      localStorage.setItem('selenian-legacy-structured', JSON.stringify(saveData))
-    }
-    
-    const loadGame = () => {
-      const saveData = localStorage.getItem('selenian-legacy-structured')
-      if (saveData) {
-        try {
-          const data = JSON.parse(saveData)
-          Object.assign(gameState, data.gameState)
-          activeTab.value = data.activeTab || 'drilling'
-        } catch (e) {
-          console.error('セーブデータの読み込みに失敗:', e)
+    // セレスの意思による自動最適化
+    const celestialWillOptimization = () => {
+      Object.keys(gameState.resources).forEach(resource => {
+        const required = gameState.currentTask.requirements[resource] || 0
+        const current = gameState.resources[resource]
+        const excess = current - required
+        
+        if (excess > 50) {
+          gameState.resources[resource] -= Math.floor(excess * 0.1)
         }
-      }
+      })
     }
     
     // ゲームループ
     let gameInterval
-    let celestialInterval
+    let optimizationInterval
     
     onMounted(() => {
-      // セーブデータの自動ロード
-      loadGame()
-      
-      // ゲーム時間の更新（1秒間隔）
+      // 1秒ごとのゲーム時間更新
       gameInterval = setInterval(() => {
-        updateGameState('gameTime', gameState.gameTime + 1)
+        gameState.gameTime += 1
       }, 1000)
       
-      // セレスの意思システム（3秒間隔）
-      celestialInterval = setInterval(() => {
-        celestialWillSystem.optimizeResources(
-          gameState.resources,
-          gameState.currentTask?.requirements || {}
-        )
-      }, 3000)
-      
-      // 自動セーブ（30秒間隔）
-      setInterval(saveGame, 30000)
+      // 3秒ごとのセレスの意思処理
+      optimizationInterval = setInterval(celestialWillOptimization, 3000)
     })
     
     onUnmounted(() => {
       if (gameInterval) clearInterval(gameInterval)
-      if (celestialInterval) clearInterval(celestialInterval)
-      saveGame() // 終了時にセーブ
+      if (optimizationInterval) clearInterval(optimizationInterval)
     })
     
     return {
-      gameState,
       activeTab,
-      showModal,
+      gameState,
       showDepthSelector,
       availableDepths,
       availableUpgrades,
@@ -230,57 +286,33 @@ export default {
       selectDepth,
       handleResourceUpdate,
       handleTaskComplete,
-      handleUpgradePurchase,
-      saveGame,
-      loadGame
+      handleUpgradePurchase
     }
   }
 }
 </script>
 
-<style scoped>
-.main-container {
+<style>
+/* App.vue専用スタイル */
+#app {
+  height: 100vh;
+  width: 100vw;
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  background: linear-gradient(135deg, #1a1a2e, #16213e);
-  color: #e0e0e0;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-.main-layout {
-  display: flex;
-  flex: 1;
+  background: var(--bg-primary, linear-gradient(135deg, #1a1a2e, #16213e));
+  color: var(--text-primary);
   overflow: hidden;
 }
 
-/* レスポンシブ対応 */
-@media (max-width: 1024px) {
-  .main-layout {
-    flex-direction: column;
-  }
-}
-
-.overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
+.main-container {
   height: 100%;
-  background: rgba(0, 0, 0, 0.8);
   display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
+  flex-direction: column;
 }
 
-.dialog {
-  background: linear-gradient(135deg, #1a1a2e, #16213e);
-  padding: 30px;
-  border-radius: 15px;
-  border: 2px solid #00d4ff;
-  max-width: 80%;
-  max-height: 80%;
-  overflow-y: auto;
+.main-layout {
+  flex: 1;
+  display: flex;
+  min-height: 0;
 }
 </style>

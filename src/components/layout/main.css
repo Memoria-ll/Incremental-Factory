@@ -1,0 +1,59 @@
+@import url('./layout.css');
+@import url('./components.css');
+@import url('./themes.css');
+
+/* グローバル設定 */
+:root {
+  --primary-blue: #00d4ff;
+  --secondary-blue: #0066cc;
+  --success-green: #00cc66;
+  --warning-orange: #ffaa00;
+  --error-red: #ff6666;
+  --text-primary: #e0e0e0;
+  --text-secondary: #aaa;
+  --background-dark: #1a1a2e;
+  --background-medium: #16213e;
+  --background-light: rgba(255,255,255,0.1);
+  --border-color: #333;
+  
+  /* レイアウト変数 */
+  --header-height: 120px;
+  --footer-height: 100px;
+  --sidebar-width: 200px;
+  --content-gap: 20px;
+}
+
+/* フォント最適化 */
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* スムーズスクロール */
+html {
+  scroll-behavior: smooth;
+}
+
+/* フォーカス管理 */
+*:focus {
+  outline: 2px solid var(--primary-blue);
+  outline-offset: 2px;
+}
+
+/* 選択時のハイライト */
+::selection {
+  background: rgba(0, 212, 255, 0.3);
+  color: white;
+}
+
+/* パフォーマンス最適化 */
+.content-card,
+.machine-card,
+.resource-display {
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
